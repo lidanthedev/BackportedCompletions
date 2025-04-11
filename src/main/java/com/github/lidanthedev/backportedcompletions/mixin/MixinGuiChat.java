@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiTextField;
 import net.minecraftforge.client.ClientCommandHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.input.Mouse;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -98,6 +99,17 @@ public class MixinGuiChat {
             return;
         }
         suggestionWindow.render(mouseX, mouseY, partialTicks);
+    }
+
+    @Inject(method = "handleMouseInput", at= @At("HEAD"))
+    public void handleMouseInput(CallbackInfo ci) {
+        int eventDWheel = Mouse.getEventDWheel();
+        suggestionWindow.mouseScrolled(eventDWheel);
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"))
+    public void mouseClicked(int mouseX, int mouseY, int mouseButton, CallbackInfo ci) {
+        suggestionWindow.onMouseClick(mouseX, mouseY, mouseButton);
     }
 
     private void sendCompletionRequest(){
