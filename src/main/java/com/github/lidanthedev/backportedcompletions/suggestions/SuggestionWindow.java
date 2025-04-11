@@ -4,6 +4,7 @@ import joptsimple.internal.Strings;
 import lombok.Data;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
+import net.minecraft.client.renderer.GlStateManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -71,6 +72,7 @@ public class SuggestionWindow {
         }
         selectedSuggestion = suggestions.get(suggestionIndex);
         // mouse hover
+        if (lastMouseX == mouseX && lastMouseY == mouseY) return;
         lastMouseX = mouseX;
         lastMouseY = mouseY;
         String hovered = getHoveredSuggestion(mouseX, mouseY);
@@ -214,9 +216,12 @@ public class SuggestionWindow {
         }
     }
 
-
     public void setSuggestions(List<String> suggestions) {
-        this.suggestions = suggestions.stream().sorted().collect(Collectors.toList());
+        this.suggestions = suggestions.stream().map(this::stripColor).sorted().collect(Collectors.toList());
         this.suggestionOffset = 0;
+    }
+
+    public String stripColor(String str) {
+        return str.replaceAll("§[0-9a-fk-or]", "");
     }
 }
