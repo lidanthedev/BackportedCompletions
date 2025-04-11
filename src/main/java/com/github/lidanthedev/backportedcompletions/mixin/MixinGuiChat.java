@@ -86,9 +86,19 @@ public class MixinGuiChat {
             suggestionWindow.onKeyTypedPost(typedChar, keyCode, ci);
             return;
         }
-        if (text != null && !text.equals(lastText)) {
+        if (text != null && !text.equals(lastText) && (text.startsWith("/") || keyCode == 15)) {
             this.sendCompletionRequest();
+        }
+        if (text != null){
             this.lastText = text;
+        }
+        if (text != null && text.isEmpty() && keyCode != 15){
+            this.foundPlayerNames.clear();
+            this.suggestionWindow.setSuggestions(this.foundPlayerNames);
+            this.suggestionWindow.setSuggestionIndex(0);
+            this.autocompleteIndex = 0;
+            this.playerNamesFound = false;
+            this.suggestionWindow.setSuggestions(this.foundPlayerNames);
         }
         this.suggestionWindow.onKeyTypedPost(typedChar, keyCode, ci);
     }
