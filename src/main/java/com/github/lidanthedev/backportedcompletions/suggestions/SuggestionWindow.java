@@ -145,7 +145,6 @@ public class SuggestionWindow {
     }
 
     private boolean attemptSelectSuggestion(String suggestion){
-        log.info("attempt to select suggestion");
         if (suggestion.isEmpty()) return true;
         log.info("Selected suggestion: {}", suggestion);
         String finalText = suggestion;

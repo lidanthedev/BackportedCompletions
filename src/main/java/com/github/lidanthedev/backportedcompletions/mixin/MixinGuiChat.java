@@ -18,8 +18,6 @@ import java.util.List;
 
 @Mixin(GuiChat.class)
 public class MixinGuiChat {
-    private static final Logger log = LogManager.getLogger(MixinGuiChat.class);
-
     private SuggestionWindow suggestionWindow;
     private String lastText = "";
 
@@ -50,7 +48,6 @@ public class MixinGuiChat {
     @Inject(method = "onAutocompleteResponse", at = @At("HEAD"), cancellable = true)
     public void onAutocompleteResponse(String[] p_146406_1_, CallbackInfo ci) {
         if (this.waitingOnAutocomplete) {
-            log.info("waitingOnAutocomplete");
             this.playerNamesFound = false;
             this.foundPlayerNames.clear();
             String[] complete = ClientCommandHandler.instance.latestAutoComplete;
@@ -61,7 +58,6 @@ public class MixinGuiChat {
                 if (s.length() <= 0) continue;
                 this.foundPlayerNames.add(s);
             }
-            log.info("now completions: {}", this.foundPlayerNames);
             if (!this.foundPlayerNames.isEmpty()) {
                 this.playerNamesFound = true;
             }
@@ -131,7 +127,6 @@ public class MixinGuiChat {
         String s = this.inputField.getText().substring(i).toLowerCase();
         String s1 = this.inputField.getText().substring(0, this.inputField.getCursorPosition());
         this.sendAutocompleteRequest(s1, s);
-        log.info("sendCompletionRequest {} {}", s1, s);
     }
 
     public void changeInputFieldText(String text) {
