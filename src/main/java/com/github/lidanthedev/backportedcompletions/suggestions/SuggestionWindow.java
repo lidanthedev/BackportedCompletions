@@ -45,7 +45,6 @@ public class SuggestionWindow {
         }
         int suggestionCount = 0;
         boolean moreAtBottom = false;
-        boolean moreAtTop = false;
         for (String suggestion : suggestions) {
             int realIndex = suggestions.indexOf(suggestion);
             if (realIndex < offset) continue;
@@ -62,7 +61,6 @@ public class SuggestionWindow {
             Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight + (suggestionCount * 10) - 6, 0xFFFFFF);
         }
         if (suggestionIndex > 0 && suggestionIndex > 9) {
-            moreAtTop = true;
             Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight - 6, 0xFFFFFF);
         }
         selectedSuggestion = suggestions.get(suggestionIndex);
@@ -73,7 +71,12 @@ public class SuggestionWindow {
     }
 
     public void onKeyTypedPre(char typedChar, int keyCode, CallbackInfo ci) {
-        if (suggestions.isEmpty()) return;
+        if (suggestions.isEmpty()) {
+            if (keyCode == 15){
+                ci.cancel();
+            }
+            return;
+        }
         if (keyCode == 1){
             // Escape key
             suggestions.clear();
@@ -86,7 +89,7 @@ public class SuggestionWindow {
             suggestionDown();
             ci.cancel();
         }
-        if (keyCode == 15 || keyCode == 78) { // Enter key or tab
+        if (keyCode == 15) { // Enter tab
             if (attemptSelectSuggestion()) return;
             ci.cancel();
         }
