@@ -66,7 +66,7 @@ public class SuggestionWindow {
         if (moreAtBottom) {
             Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight + (suggestionCount * 10) - 6, 0xFFFFFF);
         }
-        if (suggestionIndex > 0 && suggestionIndex > 9) {
+        if (suggestionOffset > 0) {
             Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight - 8, 0xFFFFFF);
         }
         selectedSuggestion = suggestions.get(suggestionIndex);
