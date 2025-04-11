@@ -15,7 +15,7 @@ public class ExampleMod {
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
-        log.info("This is a test mod for backported completions.");
+        log.info("Loaded Backported Completions");
         MinecraftForge.EVENT_BUS.register(new MyEventHandlerClass());
         MinecraftForge.EVENT_BUS.register(this);
     }
