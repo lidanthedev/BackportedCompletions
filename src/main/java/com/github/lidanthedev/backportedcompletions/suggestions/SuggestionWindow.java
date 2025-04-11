@@ -159,7 +159,9 @@ public class SuggestionWindow {
             String addSpace = allBeforeLastWord.isEmpty() ? "" : " ";
             finalText = allBeforeLastWord + addSpace + suggestion;
             if (finalText.equals(inputText)) {
-                return attemptSelectSuggestion(suggestionDown());
+                String newSuggestion = suggestionDown();
+                if (newSuggestion.equals(suggestion)) return true;
+                return attemptSelectSuggestion(newSuggestion);
             }
         }
         if (setInputFieldText != null)
