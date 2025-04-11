@@ -1,5 +1,6 @@
 package com.github.lidanthedev.backportedcompletions.suggestions;
 
+import joptsimple.internal.Strings;
 import lombok.Data;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
@@ -31,13 +32,38 @@ public class SuggestionWindow {
     public void render(int mouseX, int mouseY, float partialTicks) {
         if (suggestions.isEmpty()) return;
         if (suggestionIndex >= suggestions.size()) suggestionIndex = 0;
-        int boxHeight = suggestions.size() * 8;
-        GuiChat.drawRect(2, gui.height - 26 - boxHeight, 100, gui.height - 16, -805306368);
+        int boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
+        int maxWidth = 0;
+        for (String s : suggestions) {
+            maxWidth = Math.max(maxWidth, Minecraft.getMinecraft().fontRendererObj.getStringWidth(s));
+        }
+        GuiChat.drawRect(2, gui.height - 26 - boxHeight, maxWidth + 6, gui.height - 16, -805306368);
         // Draw the text inside the rectangle
+        int offset = 0;
+        if (suggestionIndex > 9){
+            offset = (suggestionIndex - 9);
+        }
+        int suggestionCount = 0;
+        boolean moreAtBottom = false;
+        boolean moreAtTop = false;
         for (String suggestion : suggestions) {
-            int index = suggestions.indexOf(suggestion);
-            int color = index == this.suggestionIndex ? -256 : -5592406;
-            Minecraft.getMinecraft().fontRendererObj.drawString(suggestion, 4, gui.height - 24 - boxHeight + (index * 10), color);
+            int realIndex = suggestions.indexOf(suggestion);
+            if (realIndex < offset) continue;
+            if (suggestionCount >= 10) {
+                moreAtBottom = true;
+                break;
+            };
+            int color = realIndex == this.suggestionIndex ? -256 : -5592406;
+            Minecraft.getMinecraft().fontRendererObj.drawString(suggestion, 4, gui.height - 24 - boxHeight + (suggestionCount * 10), color);
+            suggestionCount++;
+        }
+        String dots = Strings.repeat('.', maxWidth / 2 + 1);
+        if (moreAtBottom) {
+            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight + (suggestionCount * 10) - 6, 0xFFFFFF);
+        }
+        if (suggestionIndex > 0 && suggestionIndex > 9) {
+            moreAtTop = true;
+            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight - 6, 0xFFFFFF);
         }
         selectedSuggestion = suggestions.get(suggestionIndex);
     }
@@ -48,6 +74,11 @@ public class SuggestionWindow {
 
     public void onKeyTypedPre(char typedChar, int keyCode, CallbackInfo ci) {
         if (suggestions.isEmpty()) return;
+        if (keyCode == 1){
+            // Escape key
+            suggestions.clear();
+            ci.cancel();
+        }
         if (keyCode == 200) { // Up arrow key
             suggestionUp();
             ci.cancel();
@@ -55,7 +86,7 @@ public class SuggestionWindow {
             suggestionDown();
             ci.cancel();
         }
-        if (keyCode == 28 || keyCode == 15 || keyCode == 78) { // Enter key or tab
+        if (keyCode == 15 || keyCode == 78) { // Enter key or tab
             if (attemptSelectSuggestion()) return;
             ci.cancel();
         }

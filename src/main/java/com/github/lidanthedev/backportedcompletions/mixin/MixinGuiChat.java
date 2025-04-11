@@ -81,6 +81,10 @@ public class MixinGuiChat {
     public void keyTypedPost(char typedChar, int keyCode, CallbackInfo ci) {
         if (ci.isCancelled()) return;
         String text = inputField.getText();
+        if (keyCode == 200 || keyCode == 208) { // Up arrow key or Down arrow key
+            suggestionWindow.onKeyTypedPost(typedChar, keyCode, ci);
+            return;
+        }
         if (text != null && !text.equals(lastText)) {
             this.sendCompletionRequest();
             this.lastText = text;
