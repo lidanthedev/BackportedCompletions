@@ -7,7 +7,7 @@ import java.io.File;
 
 @Data
 public class ModConfig {
-    public static boolean matchStartOnly = false;
+    public static boolean matchStartOnly = true;
     public static boolean caseSensitive = false;
 
     private static Configuration config;

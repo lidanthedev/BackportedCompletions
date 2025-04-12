@@ -17,9 +17,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 @Mixin(GuiChat.class)
 public class MixinGuiChat {
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<?> debounceTask;
     private static final Logger log = LogManager.getLogger(MixinGuiChat.class);
     private SuggestionWindow suggestionWindow;
     private String lastText = "";
@@ -43,7 +49,7 @@ public class MixinGuiChat {
     @Inject(method = "initGui", at = @At("RETURN"))
     public void initGui(CallbackInfo ci) {
         GuiChat thisGuiChat = (GuiChat) (Object) this;
-        suggestionWindow = new SuggestionWindow(thisGuiChat, this::changeInputFieldText, this::getInputFieldText, this::sendCompletionRequest);
+        suggestionWindow = new SuggestionWindow(thisGuiChat, this::changeInputFieldText, this::getInputFieldText, this::sendCompletionRequestDebounced);
     }
 
     @Inject(method = "onAutocompleteResponse", at = @At("HEAD"), cancellable = true)
@@ -83,7 +89,7 @@ public class MixinGuiChat {
             return;
         }
         if (text != null && !text.equals(lastText) && text.startsWith("/") && typedChar != 0) {
-            this.sendCompletionRequest();
+            this.sendCompletionRequestDebounced();
         }
         if (text != null){
             this.lastText = text;
@@ -127,5 +133,12 @@ public class MixinGuiChat {
 
     public String getInputFieldText() {
         return this.inputField.getText();
+    }
+
+    private void sendCompletionRequestDebounced() {
+        if (debounceTask != null && !debounceTask.isDone()) {
+            debounceTask.cancel(false);
+        }
+        debounceTask = scheduler.schedule(this::sendCompletionRequest, 100, TimeUnit.MILLISECONDS);
     }
 }
