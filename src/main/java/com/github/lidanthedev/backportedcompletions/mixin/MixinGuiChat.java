@@ -48,7 +48,7 @@ public class MixinGuiChat {
 
     @Inject(method = "onAutocompleteResponse", at = @At("HEAD"), cancellable = true)
     public void onAutocompleteResponse(String[] p_146406_1_, CallbackInfo ci) {
-        log.info("onAutocompleteResponse {}", Arrays.toString(p_146406_1_));
+//        log.info("onAutocompleteResponse {}", Arrays.toString(p_146406_1_));
         if (this.waitingOnAutocomplete) {
             this.playerNamesFound = false;
             this.foundPlayerNames.clear();

@@ -1,5 +1,6 @@
 package com.github.lidanthedev.backportedcompletions.suggestions;
 
+import com.github.lidanthedev.backportedcompletions.config.ModConfig;
 import com.mojang.authlib.GameProfile;
 import joptsimple.internal.Strings;
 import lombok.Data;
@@ -33,8 +34,8 @@ public class SuggestionWindow {
     private int lastMouseX = 0, lastMouseY = 0;
     private int boxWidth = 0;
     private int boxHeight = 0;
-    private boolean matchStartOnly = false;
-    private boolean caseSensitive = false;
+    private boolean matchStartOnly = ModConfig.matchStartOnly;
+    private boolean caseSensitive = ModConfig.caseSensitive;
 
 
     public SuggestionWindow(GuiChat gui, Consumer<String> setInputFieldText, Supplier<String> getInputFieldText, Runnable requestAutocomplete) {
@@ -193,7 +194,11 @@ public class SuggestionWindow {
             String addSpace = allBeforeLastWord.isEmpty() ? "" : " ";
             finalText = allBeforeLastWord + addSpace + suggestion;
             if (finalText.equals(inputText) && !force) {
-                String newSuggestion = suggestionDown();
+                String newSuggestion;
+                if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT))
+                    newSuggestion = suggestionUp();
+                else
+                    newSuggestion = suggestionDown();
                 if (newSuggestion.equals(suggestion)) return true;
                 return attemptSelectSuggestion(newSuggestion, true);
             }
