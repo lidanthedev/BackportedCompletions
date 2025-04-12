@@ -4,12 +4,13 @@ import joptsimple.internal.Strings;
 import lombok.Data;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
-import net.minecraft.client.renderer.GlStateManager;
+import net.minecraftforge.client.ClientCommandHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -25,7 +26,6 @@ public class SuggestionWindow {
     private Consumer<String> setInputFieldText;
     private Supplier<String> getInputFieldText;
     private String selectedSuggestion = "";
-    private String lastText = "";
     private int suggestionOffset = 0;
     private int lastMouseX = 0, lastMouseY = 0;
     private int boxWidth = 0;
@@ -42,12 +42,6 @@ public class SuggestionWindow {
         int maxWidth = getMaxWidth();
         GuiChat.drawRect(2, gui.height - 26 - boxHeight, maxWidth + 6, gui.height - 16, -805306368);
         // Draw the text inside the rectangle
-        if (suggestionIndex > (suggestionOffset + 9) && suggestionIndex > suggestionOffset){
-            suggestionOffset = (suggestionIndex - 9);
-        }
-        else if (suggestionIndex < suggestionOffset){
-            suggestionOffset = suggestionIndex;
-        }
         int suggestionCount = 0;
         boolean moreAtBottom = false;
         shownSuggestions.clear();
@@ -176,6 +170,7 @@ public class SuggestionWindow {
             suggestionIndex = suggestions.size() - 1;
         }
         selectedSuggestion = suggestions.get(suggestionIndex);
+        fixOffset();
         return selectedSuggestion;
     }
 
@@ -185,6 +180,7 @@ public class SuggestionWindow {
             suggestionIndex = 0;
         }
         selectedSuggestion = suggestions.get(suggestionIndex);
+        fixOffset();
         return selectedSuggestion;
     }
 
@@ -216,8 +212,25 @@ public class SuggestionWindow {
     }
 
     public void setSuggestions(List<String> suggestions) {
-        this.suggestions = suggestions.stream().map(this::stripColor).sorted().collect(Collectors.toList());
+        if (getInputFieldText != null) {
+            String inputText = getInputFieldText.get();
+            if (inputText.startsWith("/")) {
+                String[] latestClientAutoComplete = ClientCommandHandler.instance.latestAutoComplete;
+                if (latestClientAutoComplete != null)
+                    suggestions.addAll(Arrays.asList(latestClientAutoComplete));
+            }
+        }
+        this.suggestions = suggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
         this.suggestionOffset = 0;
+    }
+
+    public void fixOffset(){
+        if (suggestionIndex > (suggestionOffset + 9) && suggestionIndex > suggestionOffset){
+            suggestionOffset = (suggestionIndex - 9);
+        }
+        else if (suggestionIndex < suggestionOffset){
+            suggestionOffset = suggestionIndex;
+        }
     }
 
     public String stripColor(String str) {

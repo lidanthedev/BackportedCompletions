@@ -14,10 +14,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Mixin(GuiChat.class)
 public class MixinGuiChat {
+    private static final Logger log = LogManager.getLogger(MixinGuiChat.class);
     private SuggestionWindow suggestionWindow;
     private String lastText = "";
 
@@ -47,6 +49,7 @@ public class MixinGuiChat {
 
     @Inject(method = "onAutocompleteResponse", at = @At("HEAD"), cancellable = true)
     public void onAutocompleteResponse(String[] p_146406_1_, CallbackInfo ci) {
+//        log.info("onAutocompleteResponse {}", Arrays.toString(p_146406_1_));
         if (this.waitingOnAutocomplete) {
             this.playerNamesFound = false;
             this.foundPlayerNames.clear();
