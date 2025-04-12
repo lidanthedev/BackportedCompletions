@@ -197,6 +197,7 @@ public class SuggestionWindow {
     }
 
     public void onKeyTypedPost(char typedChar, int keyCode, CallbackInfo ci) {
+        if (typedChar == 0) return;
         syncSuggestions();
     }
 
