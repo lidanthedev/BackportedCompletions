@@ -116,7 +116,6 @@ public class MixinGuiChat {
 
     private void sendCompletionRequest(){
         int i = this.inputField.func_146197_a(-1, this.inputField.getCursorPosition(), false);
-        suggestionWindow.setSuggestions(this.foundPlayerNames);
         String s = this.inputField.getText().substring(i).toLowerCase();
         String s1 = this.inputField.getText().substring(0, this.inputField.getCursorPosition());
         this.sendAutocompleteRequest(s1, s);

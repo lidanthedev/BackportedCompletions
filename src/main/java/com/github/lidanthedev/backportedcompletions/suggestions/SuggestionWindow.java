@@ -33,6 +33,9 @@ public class SuggestionWindow {
     private int lastMouseX = 0, lastMouseY = 0;
     private int boxWidth = 0;
     private int boxHeight = 0;
+    private boolean matchStartOnly = false;
+    private boolean caseSensitive = false;
+
 
     public SuggestionWindow(GuiChat gui, Consumer<String> setInputFieldText, Supplier<String> getInputFieldText, Runnable requestAutocomplete) {
         this.gui = gui;
@@ -222,6 +225,14 @@ public class SuggestionWindow {
 
     public void onKeyTypedPost(char typedChar, int keyCode, CallbackInfo ci) {
         if (typedChar == 0) return;
+        if (keyCode == Keyboard.KEY_SPACE){
+            suggestions.clear();
+            lastSuggestions.clear();
+            suggestionIndex = 0;
+            scrollOffset = 0;
+            selectedSuggestion = "";
+            return;
+        }
         syncSuggestions();
     }
 
@@ -231,16 +242,34 @@ public class SuggestionWindow {
         String fixedInputText = inputText + "a"; // extra char to prevent empty string
         if (inputText.isEmpty()) return "";
         String[] split = fixedInputText.split(" ");
-        return split[split.length - 1].substring(0, split.length - 1);
+        String last = split[split.length - 1];
+        return last.substring(0, last.length() - 1);
     }
 
     private void syncSuggestions() {
         if (getInputFieldText == null) return;
+
         String inputText = getCurrentInputAtCursor();
         if (inputText.isEmpty()) return;
-        String lowerCaseInputText = inputText.toLowerCase();
-        suggestions = lastSuggestions.stream().filter(s -> !s.isEmpty() && s.toLowerCase().contains(lowerCaseInputText)).distinct().collect(Collectors.toList());
+
+        final String filter = caseSensitive ? inputText : inputText.toLowerCase();
+
+        this.suggestions = lastSuggestions.stream()
+                .filter(s -> {
+                    if (s.isEmpty()) return false;
+
+                    String target = caseSensitive ? s : s.toLowerCase();
+                    return matchStartOnly
+                            ? target.startsWith(filter)
+                            : target.contains(filter);
+                })
+                .distinct()
+                .collect(Collectors.toList());
+
+        suggestionIndex = 0;
+        fixOffset();
     }
+
 
     public void mouseScrolled(double amount, CallbackInfo ci) {
         if (suggestions.isEmpty()) return;
@@ -261,7 +290,7 @@ public class SuggestionWindow {
         if (amount < -1){
             scrollOffset++;
             if (scrollOffset > suggestions.size() - 10) {
-                scrollOffset = suggestions.size() - 10;
+                scrollOffset = Math.max(suggestions.size() - 10, 0);
             }
             ci.cancel();
         }
@@ -277,8 +306,15 @@ public class SuggestionWindow {
                     allSuggestions.addAll(Arrays.asList(latestClientAutoComplete));
             }
         }
-        this.suggestions = allSuggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
-        this.lastSuggestions = allSuggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
+        List<String> processed = allSuggestions.stream()
+                .map(this::stripColor)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+
+        this.suggestions = new ArrayList<>(processed);
+        this.lastSuggestions = new ArrayList<>(processed);
+
         this.scrollOffset = 0;
         syncSuggestions();
     }
