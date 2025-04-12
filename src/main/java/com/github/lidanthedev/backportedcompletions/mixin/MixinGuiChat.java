@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiTextField;
 import net.minecraftforge.client.ClientCommandHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -78,7 +79,7 @@ public class MixinGuiChat {
     public void keyTypedPost(char typedChar, int keyCode, CallbackInfo ci) {
         if (ci.isCancelled()) return;
         String text = inputField.getText();
-        if (keyCode == 200 || keyCode == 208) { // Up arrow key or Down arrow key
+        if (keyCode == Keyboard.KEY_UP || keyCode == Keyboard.KEY_DOWN) { // Up arrow key or Down arrow key
             return;
         }
         if (text != null && !text.equals(lastText) && text.startsWith("/") && typedChar != 0) {
@@ -87,13 +88,12 @@ public class MixinGuiChat {
         if (text != null){
             this.lastText = text;
         }
-        if (text != null && text.isEmpty() && keyCode != 15){
+        if (text != null && text.isEmpty() && keyCode != Keyboard.KEY_TAB){
             this.foundPlayerNames.clear();
             this.suggestionWindow.setSuggestions(this.foundPlayerNames);
             this.suggestionWindow.setSuggestionIndex(0);
             this.autocompleteIndex = 0;
             this.playerNamesFound = false;
-            this.suggestionWindow.setSuggestions(this.foundPlayerNames);
         }
         this.suggestionWindow.onKeyTypedPost(typedChar, keyCode, ci);
     }

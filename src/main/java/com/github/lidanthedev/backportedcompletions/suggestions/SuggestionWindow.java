@@ -9,6 +9,7 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraftforge.client.ClientCommandHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.input.Keyboard;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.*;
@@ -28,7 +29,7 @@ public class SuggestionWindow {
     private final Supplier<String> getInputFieldText;
     private final Runnable requestAutocomplete;
     private String selectedSuggestion = "";
-    private int suggestionOffset = 0;
+    private int scrollOffset = 0;
     private int lastMouseX = 0, lastMouseY = 0;
     private int boxWidth = 0;
     private int boxHeight = 0;
@@ -42,35 +43,17 @@ public class SuggestionWindow {
 
     public void render(int mouseX, int mouseY, float partialTicks) {
         if (suggestions.isEmpty()) return;
-        if (suggestionIndex >= suggestions.size()) suggestionIndex = 0;
-        int boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
-        int maxWidth = getMaxWidth();
-        GuiChat.drawRect(2, gui.height - 26 - boxHeight, maxWidth + 6, gui.height - 16, -805306368);
-        // Draw the text inside the rectangle
-        int suggestionCount = 0;
-        boolean moreAtBottom = false;
-        shownSuggestions.clear();
-        for (String suggestion : suggestions) {
-            int realIndex = suggestions.indexOf(suggestion);
-            if (realIndex < suggestionOffset) continue;
-            if (suggestionCount >= 10) {
-                moreAtBottom = true;
-                break;
-            };
-            int color = realIndex == this.suggestionIndex ? -256 : -5592406;
-            Minecraft.getMinecraft().fontRendererObj.drawString(suggestion, 4, gui.height - 24 - boxHeight + (suggestionCount * 10), color);
-            shownSuggestions.add(suggestion);
-            suggestionCount++;
-        }
-        String dots = Strings.repeat('.', maxWidth / 2 + 1);
-        if (moreAtBottom) {
-            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight + (suggestionCount * 10) - 6, 0xFFFFFF);
-        }
-        if (suggestionOffset > 0) {
-            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, gui.height - 24 - boxHeight - 8, 0xFFFFFF);
-        }
-        selectedSuggestion = suggestions.get(suggestionIndex);
-        // mouse hover
+        suggestionIndex = Math.min(suggestionIndex, suggestions.size() - 1);
+        boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
+        boxWidth = getMaxWidth();
+        drawBackground(boxHeight, boxWidth);
+        drawSuggestions();
+        drawScrollDots();
+        updateSelectedSuggestion();
+        updateHoveredSuggestion(mouseX, mouseY);
+    }
+
+    private void updateHoveredSuggestion(int mouseX, int mouseY) {
         if (lastMouseX == mouseX && lastMouseY == mouseY) return;
         lastMouseX = mouseX;
         lastMouseY = mouseY;
@@ -80,6 +63,51 @@ public class SuggestionWindow {
             suggestionIndex = suggestions.indexOf(hovered);
         }
     }
+
+    private void drawBackground(int boxHeight, int maxWidth) {
+        GuiChat.drawRect(2, gui.height - 26 - boxHeight, maxWidth + 6, gui.height - 16, -805306368);
+    }
+
+    private void drawScrollDots() {
+        String dots = Strings.repeat('.', boxWidth / 2 + 1);
+        int baseY = gui.height - 24 - boxHeight;
+
+        if (scrollOffset > 0) {
+            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, baseY - 8, 0xFFFFFF);
+        }
+
+        if (scrollOffset + 10 < suggestions.size()) {
+            int dotY = baseY + shownSuggestions.size() * 10 - 6;
+            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, dotY, 0xFFFFFF);
+        }
+    }
+
+    private void drawSuggestions() {
+        shownSuggestions.clear();
+        int suggestionCount = 0;
+
+        for (int i = scrollOffset; i < suggestions.size(); i++) {
+            if (suggestionCount >= 10) break;
+
+            String suggestion = suggestions.get(i);
+            int color = (i == suggestionIndex) ? -256 : -5592406;
+            Minecraft.getMinecraft().fontRendererObj.drawString(
+                    suggestion,
+                    4,
+                    gui.height - 24 - boxHeight + (suggestionCount * 10),
+                    color
+            );
+            shownSuggestions.add(suggestion);
+            suggestionCount++;
+        }
+    }
+
+    private void updateSelectedSuggestion() {
+        if (!suggestions.isEmpty()) {
+            selectedSuggestion = suggestions.get(suggestionIndex);
+        }
+    }
+
 
     private int getMaxWidth() {
         int maxWidth = 0;
@@ -109,14 +137,14 @@ public class SuggestionWindow {
         if (shownSuggestions.isEmpty()) return;
         String hovered = getHoveredSuggestion(mouseX, mouseY);
         if (hovered.isEmpty()) return;
-        attemptSelectSuggestion(hovered);
+        attemptSelectSuggestion(hovered, true);
         ci.cancel();
     }
 
     public void onKeyTypedPre(char typedChar, int keyCode, CallbackInfo ci) {
         String text = getInputFieldText.get();
         if (suggestions.isEmpty()) {
-            if (keyCode == 15){
+            if (keyCode == Keyboard.KEY_TAB){
                 requestAutocomplete.run();
                 if (text.isEmpty()){
                     setSuggestions(Minecraft.getMinecraft().getNetHandler().getPlayerInfoMap().stream()
@@ -128,29 +156,29 @@ public class SuggestionWindow {
             }
             return;
         }
-        if (keyCode == 1){
+        if (keyCode == Keyboard.KEY_ESCAPE){
             // Escape key
             suggestions.clear();
             ci.cancel();
         }
-        if (keyCode == 200) { // Up arrow key
+        if (keyCode == Keyboard.KEY_UP) { // Up arrow key
             suggestionUp();
             ci.cancel();
-        } else if (keyCode == 208) { // Down arrow key
+        } else if (keyCode == Keyboard.KEY_DOWN) { // Down arrow key
             suggestionDown();
             ci.cancel();
         }
-        if (keyCode == 15) { // Enter tab
+        if (keyCode == Keyboard.KEY_TAB) { // Enter tab
             if (attemptSelectSuggestion()) return;
             ci.cancel();
         }
     }
 
     private boolean attemptSelectSuggestion() {
-        return attemptSelectSuggestion(selectedSuggestion);
+        return attemptSelectSuggestion(selectedSuggestion, false);
     }
 
-    private boolean attemptSelectSuggestion(String suggestion){
+    private boolean attemptSelectSuggestion(String suggestion, boolean force) {
         if (suggestion.isEmpty()) return true;
         log.info("Selected suggestion: {}", suggestion);
         String finalText = suggestion;
@@ -158,17 +186,13 @@ public class SuggestionWindow {
             String inputText = getInputFieldText.get();
             String fixedInputText = inputText + "a"; // extra char to prevent empty string
             String[] split = fixedInputText.split(" ");
-            String allBeforeLastWord = "";
-            for (int i = 0; i < split.length - 1; i++) {
-                allBeforeLastWord += split[i] + " ";
-            }
-            allBeforeLastWord = allBeforeLastWord.trim();
+            String allBeforeLastWord = String.join(" ", Arrays.copyOf(split, split.length - 1));
             String addSpace = allBeforeLastWord.isEmpty() ? "" : " ";
             finalText = allBeforeLastWord + addSpace + suggestion;
-            if (finalText.equals(inputText)) {
+            if (finalText.equals(inputText) && !force) {
                 String newSuggestion = suggestionDown();
                 if (newSuggestion.equals(suggestion)) return true;
-                return attemptSelectSuggestion(newSuggestion);
+                return attemptSelectSuggestion(newSuggestion, true);
             }
         }
         if (setInputFieldText != null)
@@ -201,11 +225,21 @@ public class SuggestionWindow {
         syncSuggestions();
     }
 
+    public String getCurrentInputAtCursor() {
+        if (getInputFieldText == null) return "";
+        String inputText = getInputFieldText.get();
+        String fixedInputText = inputText + "a"; // extra char to prevent empty string
+        if (inputText.isEmpty()) return "";
+        String[] split = fixedInputText.split(" ");
+        return split[split.length - 1].substring(0, split.length - 1);
+    }
+
     private void syncSuggestions() {
         if (getInputFieldText == null) return;
-        String inputText = getInputFieldText.get();
+        String inputText = getCurrentInputAtCursor();
         if (inputText.isEmpty()) return;
-        suggestions = lastSuggestions.stream().filter(s -> !s.isEmpty() && s.substring(0,1).equalsIgnoreCase(inputText.substring(0,1)) && s.contains(inputText)).distinct().collect(Collectors.toList());
+        String lowerCaseInputText = inputText.toLowerCase();
+        suggestions = lastSuggestions.stream().filter(s -> !s.isEmpty() && s.toLowerCase().contains(lowerCaseInputText)).distinct().collect(Collectors.toList());
     }
 
     public void mouseScrolled(double amount, CallbackInfo ci) {
@@ -218,16 +252,16 @@ public class SuggestionWindow {
             return;
         }
         if (amount > 1){
-            suggestionOffset--;
-            if (suggestionOffset < 0) {
-                suggestionOffset = 0;
+            scrollOffset--;
+            if (scrollOffset < 0) {
+                scrollOffset = 0;
             }
             ci.cancel();
         }
         if (amount < -1){
-            suggestionOffset++;
-            if (suggestionOffset > suggestions.size() - 10) {
-                suggestionOffset = suggestions.size() - 10;
+            scrollOffset++;
+            if (scrollOffset > suggestions.size() - 10) {
+                scrollOffset = suggestions.size() - 10;
             }
             ci.cancel();
         }
@@ -245,16 +279,16 @@ public class SuggestionWindow {
         }
         this.suggestions = allSuggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
         this.lastSuggestions = allSuggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
-        this.suggestionOffset = 0;
+        this.scrollOffset = 0;
         syncSuggestions();
     }
 
     public void fixOffset(){
-        if (suggestionIndex > (suggestionOffset + 9) && suggestionIndex > suggestionOffset){
-            suggestionOffset = (suggestionIndex - 9);
+        if (suggestionIndex > (scrollOffset + 9) && suggestionIndex > scrollOffset){
+            scrollOffset = (suggestionIndex - 9);
         }
-        else if (suggestionIndex < suggestionOffset){
-            suggestionOffset = suggestionIndex;
+        else if (suggestionIndex < scrollOffset){
+            scrollOffset = suggestionIndex;
         }
     }
 
