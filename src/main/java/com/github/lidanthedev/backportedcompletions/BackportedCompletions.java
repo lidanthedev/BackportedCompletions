@@ -1,6 +1,5 @@
 package com.github.lidanthedev.backportedcompletions;
 
-import com.github.lidanthedev.backportedcompletions.listeners.MyEventHandlerClass;
 import com.github.lidanthedev.backportedcompletions.config.ModConfig;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
@@ -21,7 +20,6 @@ public class BackportedCompletions {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         log.info("Loaded Backported Completions");
-        MinecraftForge.EVENT_BUS.register(new MyEventHandlerClass());
         MinecraftForge.EVENT_BUS.register(this);
     }
 }
