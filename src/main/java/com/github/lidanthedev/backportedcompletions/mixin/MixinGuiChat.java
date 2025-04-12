@@ -42,14 +42,12 @@ public class MixinGuiChat {
     @Inject(method = "initGui", at = @At("RETURN"))
     public void initGui(CallbackInfo ci) {
         GuiChat thisGuiChat = (GuiChat) (Object) this;
-        suggestionWindow = new SuggestionWindow(thisGuiChat);
-        suggestionWindow.setSetInputFieldText(this::changeInputFieldText);
-        suggestionWindow.setGetInputFieldText(this::getInputFieldText);
+        suggestionWindow = new SuggestionWindow(thisGuiChat, this::changeInputFieldText, this::getInputFieldText, this::sendCompletionRequest);
     }
 
     @Inject(method = "onAutocompleteResponse", at = @At("HEAD"), cancellable = true)
     public void onAutocompleteResponse(String[] p_146406_1_, CallbackInfo ci) {
-//        log.info("onAutocompleteResponse {}", Arrays.toString(p_146406_1_));
+        log.info("onAutocompleteResponse {}", Arrays.toString(p_146406_1_));
         if (this.waitingOnAutocomplete) {
             this.playerNamesFound = false;
             this.foundPlayerNames.clear();
@@ -64,6 +62,8 @@ public class MixinGuiChat {
             if (!this.foundPlayerNames.isEmpty()) {
                 this.playerNamesFound = true;
             }
+            this.autocompleteIndex = 0;
+            suggestionWindow.setSuggestionIndex(0);
             this.suggestionWindow.setSuggestions(this.foundPlayerNames);
             ci.cancel();
         }
@@ -71,9 +71,6 @@ public class MixinGuiChat {
 
     @Inject(method = "keyTyped", at = @At("HEAD"), cancellable = true)
     public void keyTypedPre(char typedChar, int keyCode, CallbackInfo ci) {
-        if (this.foundPlayerNames.isEmpty()) {
-            return;
-        }
         suggestionWindow.onKeyTypedPre(typedChar, keyCode, ci);
     }
 
@@ -82,10 +79,9 @@ public class MixinGuiChat {
         if (ci.isCancelled()) return;
         String text = inputField.getText();
         if (keyCode == 200 || keyCode == 208) { // Up arrow key or Down arrow key
-            suggestionWindow.onKeyTypedPost(typedChar, keyCode, ci);
             return;
         }
-        if (text != null && !text.equals(lastText) && (text.startsWith("/") || keyCode == 15)) {
+        if (text != null && !text.equals(lastText) && text.startsWith("/") && typedChar != 0) {
             this.sendCompletionRequest();
         }
         if (text != null){
@@ -104,28 +100,22 @@ public class MixinGuiChat {
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
     public void drawScreen(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
-        if (this.foundPlayerNames.isEmpty()) {
-            return;
-        }
         suggestionWindow.render(mouseX, mouseY, partialTicks);
     }
 
-    @Inject(method = "handleMouseInput", at= @At("HEAD"))
+    @Inject(method = "handleMouseInput", at= @At("HEAD"), cancellable = true)
     public void handleMouseInput(CallbackInfo ci) {
         int eventDWheel = Mouse.getEventDWheel();
-        suggestionWindow.mouseScrolled(eventDWheel);
+        suggestionWindow.mouseScrolled(eventDWheel, ci);
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"))
+    @Inject(method = "mouseClicked", at = @At("HEAD"),cancellable = true)
     public void mouseClicked(int mouseX, int mouseY, int mouseButton, CallbackInfo ci) {
-        suggestionWindow.onMouseClick(mouseX, mouseY, mouseButton);
+        suggestionWindow.onMouseClick(mouseX, mouseY, mouseButton, ci);
     }
 
     private void sendCompletionRequest(){
         int i = this.inputField.func_146197_a(-1, this.inputField.getCursorPosition(), false);
-        this.foundPlayerNames.clear();
-        this.autocompleteIndex = 0;
-        suggestionWindow.setSuggestionIndex(0);
         suggestionWindow.setSuggestions(this.foundPlayerNames);
         String s = this.inputField.getText().substring(i).toLowerCase();
         String s1 = this.inputField.getText().substring(0, this.inputField.getCursorPosition());

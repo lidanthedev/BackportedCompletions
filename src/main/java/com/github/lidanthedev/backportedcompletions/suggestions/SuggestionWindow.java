@@ -1,17 +1,17 @@
 package com.github.lidanthedev.backportedcompletions.suggestions;
 
+import com.mojang.authlib.GameProfile;
 import joptsimple.internal.Strings;
 import lombok.Data;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraftforge.client.ClientCommandHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -21,18 +21,23 @@ public class SuggestionWindow {
     private static final Logger log = LogManager.getLogger(SuggestionWindow.class);
     private GuiChat gui;
     private List<String> suggestions = new ArrayList<>();
+    private List<String> lastSuggestions = new ArrayList<>(); // last suggestions returned from server
     private List<String> shownSuggestions = new ArrayList<>();
     private int suggestionIndex = 0;
-    private Consumer<String> setInputFieldText;
-    private Supplier<String> getInputFieldText;
+    private final Consumer<String> setInputFieldText;
+    private final Supplier<String> getInputFieldText;
+    private final Runnable requestAutocomplete;
     private String selectedSuggestion = "";
     private int suggestionOffset = 0;
     private int lastMouseX = 0, lastMouseY = 0;
     private int boxWidth = 0;
     private int boxHeight = 0;
 
-    public SuggestionWindow(GuiChat gui) {
+    public SuggestionWindow(GuiChat gui, Consumer<String> setInputFieldText, Supplier<String> getInputFieldText, Runnable requestAutocomplete) {
         this.gui = gui;
+        this.setInputFieldText = setInputFieldText;
+        this.getInputFieldText = getInputFieldText;
+        this.requestAutocomplete = requestAutocomplete;
     }
 
     public void render(int mouseX, int mouseY, float partialTicks) {
@@ -79,7 +84,7 @@ public class SuggestionWindow {
     private int getMaxWidth() {
         int maxWidth = 0;
         for (String s : suggestions) {
-            maxWidth = Math.max(maxWidth, Minecraft.getMinecraft().fontRendererObj.getStringWidth(s));
+            maxWidth = Math.max(maxWidth, getWidthCached(s));
         }
         return maxWidth;
     }
@@ -100,18 +105,25 @@ public class SuggestionWindow {
         return "";
     }
 
-    public void onMouseClick(int mouseX, int mouseY, int mouseButton) {
+    public void onMouseClick(int mouseX, int mouseY, int mouseButton, CallbackInfo ci) {
         if (shownSuggestions.isEmpty()) return;
-        int boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
-        getMaxWidth();
         String hovered = getHoveredSuggestion(mouseX, mouseY);
         if (hovered.isEmpty()) return;
         attemptSelectSuggestion(hovered);
+        ci.cancel();
     }
 
     public void onKeyTypedPre(char typedChar, int keyCode, CallbackInfo ci) {
+        String text = getInputFieldText.get();
         if (suggestions.isEmpty()) {
             if (keyCode == 15){
+                requestAutocomplete.run();
+                if (text.isEmpty()){
+                    setSuggestions(Minecraft.getMinecraft().getNetHandler().getPlayerInfoMap().stream()
+                            .map(NetworkPlayerInfo::getGameProfile)
+                            .map(GameProfile::getName)
+                            .collect(Collectors.toList()));
+                }
                 ci.cancel();
             }
             return;
@@ -185,10 +197,17 @@ public class SuggestionWindow {
     }
 
     public void onKeyTypedPost(char typedChar, int keyCode, CallbackInfo ci) {
-
+        syncSuggestions();
     }
 
-    public void mouseScrolled(double amount) {
+    private void syncSuggestions() {
+        if (getInputFieldText == null) return;
+        String inputText = getInputFieldText.get();
+        if (inputText.isEmpty()) return;
+        suggestions = lastSuggestions.stream().filter(s -> !s.isEmpty() && s.substring(0,1).equalsIgnoreCase(inputText.substring(0,1)) && s.contains(inputText)).distinct().collect(Collectors.toList());
+    }
+
+    public void mouseScrolled(double amount, CallbackInfo ci) {
         if (suggestions.isEmpty()) return;
         // check if in the suggestion window
         int boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
@@ -202,26 +221,31 @@ public class SuggestionWindow {
             if (suggestionOffset < 0) {
                 suggestionOffset = 0;
             }
+            ci.cancel();
         }
         if (amount < -1){
             suggestionOffset++;
             if (suggestionOffset > suggestions.size() - 10) {
                 suggestionOffset = suggestions.size() - 10;
             }
+            ci.cancel();
         }
     }
 
     public void setSuggestions(List<String> suggestions) {
+        List<String> allSuggestions = new ArrayList<>(suggestions);
         if (getInputFieldText != null) {
             String inputText = getInputFieldText.get();
             if (inputText.startsWith("/")) {
                 String[] latestClientAutoComplete = ClientCommandHandler.instance.latestAutoComplete;
                 if (latestClientAutoComplete != null)
-                    suggestions.addAll(Arrays.asList(latestClientAutoComplete));
+                    allSuggestions.addAll(Arrays.asList(latestClientAutoComplete));
             }
         }
-        this.suggestions = suggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
+        this.suggestions = allSuggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
+        this.lastSuggestions = allSuggestions.stream().map(this::stripColor).distinct().sorted().collect(Collectors.toList());
         this.suggestionOffset = 0;
+        syncSuggestions();
     }
 
     public void fixOffset(){
@@ -235,5 +259,11 @@ public class SuggestionWindow {
 
     public String stripColor(String str) {
         return str.replaceAll("§[0-9a-fk-or]", "");
+    }
+
+    Map<String, Integer> widthCache = new HashMap<>();
+    int getWidthCached(String s) {
+        if (s.isEmpty()) return 0;
+        return widthCache.computeIfAbsent(s, s1 -> Minecraft.getMinecraft().fontRendererObj.getStringWidth(s1));
     }
 }
