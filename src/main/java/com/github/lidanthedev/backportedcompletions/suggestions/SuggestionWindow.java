@@ -10,6 +10,7 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraftforge.client.ClientCommandHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.lwjgl.input.Keyboard;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -21,6 +22,9 @@ import java.util.stream.Collectors;
 @Data
 public class SuggestionWindow {
     private static final Logger log = LogManager.getLogger(SuggestionWindow.class);
+    public static final int TEXT_BASE_X = 4;
+    public static final int BOX_BASE_X = 2;
+    public static final int BOX_BASE_WIDTH = 6;
     private GuiChat gui;
     private List<String> suggestions = new ArrayList<>();
     private List<String> lastSuggestions = new ArrayList<>(); // last suggestions returned from server
@@ -34,6 +38,7 @@ public class SuggestionWindow {
     private int lastMouseX = 0, lastMouseY = 0;
     private int boxWidth = 0;
     private int boxHeight = 0;
+    private int boxOffset = 0;
     private boolean matchStartOnly = ModConfig.matchStartOnly;
     private boolean caseSensitive = ModConfig.caseSensitive;
 
@@ -50,11 +55,24 @@ public class SuggestionWindow {
         suggestionIndex = Math.min(suggestionIndex, suggestions.size() - 1);
         boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
         boxWidth = getMaxWidth();
+        boxOffset = calculateTextInputWidth();
         drawBackground(boxHeight, boxWidth);
         drawSuggestions();
         drawScrollDots();
-        updateSelectedSuggestion();
         updateHoveredSuggestion(mouseX, mouseY);
+        updateSelectedSuggestion();
+    }
+
+    public int calculateTextInputWidth(){
+        String inputText = getInputFieldText.get();
+        int width = 0;
+        if (inputText.startsWith("/")){
+            width = getWidthCached("/");
+        }else {
+            width = BOX_BASE_X;
+        }
+        width += getWidthCached(getAllBeforeLastWord(inputText));
+        return width - BOX_BASE_X;
     }
 
     private void updateHoveredSuggestion(int mouseX, int mouseY) {
@@ -69,7 +87,7 @@ public class SuggestionWindow {
     }
 
     private void drawBackground(int boxHeight, int maxWidth) {
-        GuiChat.drawRect(2, gui.height - 26 - boxHeight, maxWidth + 6, gui.height - 16, -805306368);
+        GuiChat.drawRect( BOX_BASE_X + boxOffset, gui.height - 26 - boxHeight, maxWidth + boxOffset + BOX_BASE_WIDTH, gui.height - 16, -805306368);
     }
 
     private void drawScrollDots() {
@@ -77,12 +95,12 @@ public class SuggestionWindow {
         int baseY = gui.height - 24 - boxHeight;
 
         if (scrollOffset > 0) {
-            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, baseY - 8, 0xFFFFFF);
+            Minecraft.getMinecraft().fontRendererObj.drawString(dots, TEXT_BASE_X + boxOffset, baseY - 8, 0xFFFFFF);
         }
 
         if (scrollOffset + 10 < suggestions.size()) {
             int dotY = baseY + shownSuggestions.size() * 10 - 6;
-            Minecraft.getMinecraft().fontRendererObj.drawString(dots, 4, dotY, 0xFFFFFF);
+            Minecraft.getMinecraft().fontRendererObj.drawString(dots, TEXT_BASE_X + boxOffset, dotY, 0xFFFFFF);
         }
     }
 
@@ -94,10 +112,14 @@ public class SuggestionWindow {
             if (suggestionCount >= 10) break;
 
             String suggestion = suggestions.get(i);
+            String formattedSuggestion = suggestion;
+            if (suggestion.startsWith("/")) {
+                formattedSuggestion = formattedSuggestion.substring(1);
+            }
             int color = (i == suggestionIndex) ? -256 : -5592406;
             Minecraft.getMinecraft().fontRendererObj.drawString(
-                    suggestion,
-                    4,
+                    formattedSuggestion,
+                    TEXT_BASE_X + boxOffset,
                     gui.height - 24 - boxHeight + (suggestionCount * 10),
                     color
             );
@@ -107,7 +129,7 @@ public class SuggestionWindow {
     }
 
     private void updateSelectedSuggestion() {
-        if (!suggestions.isEmpty()) {
+        if (!suggestions.isEmpty() && suggestionIndex != -1) {
             selectedSuggestion = suggestions.get(suggestionIndex);
         }
     }
@@ -116,6 +138,9 @@ public class SuggestionWindow {
     private int getMaxWidth() {
         int maxWidth = 0;
         for (String s : suggestions) {
+            if (s.startsWith("/")) {
+                s = s.substring(1);
+            }
             maxWidth = Math.max(maxWidth, getWidthCached(s));
         }
         return maxWidth;
@@ -125,7 +150,7 @@ public class SuggestionWindow {
         if (suggestions.isEmpty()) return "";
         int boxHeight = Math.min(suggestions.size(), 10) * 10 - 8;
         int maxWidth = getMaxWidth();
-        if (mouseX >= 2 && mouseX <= maxWidth + 6 && mouseY >= gui.height - 26 - boxHeight && mouseY <= gui.height - 16) {
+        if (mouseX >= BOX_BASE_X + boxOffset && mouseX <= maxWidth + boxOffset + BOX_BASE_WIDTH && mouseY >= gui.height - 26 - boxHeight && mouseY <= gui.height - 16) {
             int suggestionCount = 0;
             for (String suggestion : shownSuggestions) {
                 if (mouseY >= gui.height - 24 - boxHeight + (suggestionCount * 10) && mouseY <= gui.height - 24 - boxHeight + ((suggestionCount + 1) * 10)) {
@@ -188,9 +213,7 @@ public class SuggestionWindow {
         String finalText = suggestion;
         if (getInputFieldText != null) {
             String inputText = getInputFieldText.get();
-            String fixedInputText = inputText + "a"; // extra char to prevent empty string
-            String[] split = fixedInputText.split(" ");
-            String allBeforeLastWord = String.join(" ", Arrays.copyOf(split, split.length - 1));
+            String allBeforeLastWord = getAllBeforeLastWord(inputText);
             String addSpace = allBeforeLastWord.isEmpty() ? "" : " ";
             finalText = allBeforeLastWord + addSpace + suggestion;
             if (finalText.equals(inputText) && !force) {
@@ -206,6 +229,12 @@ public class SuggestionWindow {
         if (setInputFieldText != null)
             setInputFieldText.accept(finalText);
         return false;
+    }
+
+    private static @NotNull String getAllBeforeLastWord(String inputText) {
+        String fixedInputText = inputText + "a"; // extra char to prevent empty string
+        String[] split = fixedInputText.split(" ");
+        return String.join(" ", Arrays.copyOf(split, split.length - 1));
     }
 
     private String suggestionUp() {
