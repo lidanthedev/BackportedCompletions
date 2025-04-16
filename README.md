@@ -2,6 +2,15 @@
 
 BackportedCompletions is a Minecraft mod that brings the 1.13+ suggestion box/autocomplete feature to Minecraft 1.8.9. This mod enhances the chat experience by providing a modern, user-friendly suggestion box for commands and player names, similar to newer versions of Minecraft.
 
+## Screenshots
+
+### Suggestion Box in Action
+![backportedcompletions_action](https://github.com/user-attachments/assets/ca117da3-f517-4467-b2fc-2d062f306b4d)
+
+### Autocomplete Example
+![backportedcompletions_box](https://github.com/user-attachments/assets/39851c61-8c7a-43e8-a675-d6272513cb7d)
+
+
 ## Features
 - **1.13+ Style Suggestion Box**: Implements the modern autocomplete UI for commands and player names.
 - **Customizable Behavior**: Supports case sensitivity and matching options (e.g., match start only).
