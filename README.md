@@ -59,7 +59,7 @@ This mod uses:
 
 ### Setting Up the Development Environment
 1. Import the project into IntelliJ IDEA.
-2. Run the Gradle `setupDecompWorkspace` task to set up the environment.
+2. Run the Gradle `genIntelliJRuns` task to set up the environment.
 3. Use the `runClient` Gradle task to test the mod in a development environment.
 
 ## Contributing
