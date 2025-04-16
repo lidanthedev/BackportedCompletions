@@ -5,7 +5,11 @@ BackportedCompletions is a Minecraft mod that brings the 1.13+ suggestion box/au
 ## Screenshots
 
 ### Suggestion Box in Action
-![backportedcompletions_action](https://github.com/user-attachments/assets/ca117da3-f517-4467-b2fc-2d062f306b4d)
+![backportedcompletions_actions](https://github.com/user-attachments/assets/c6eba221-911a-43b3-95f1-5e93025b9717)
+
+
+### Suggestion Box mouse scrolling
+![backportedcompletions_scroll](https://github.com/user-attachments/assets/ca117da3-f517-4467-b2fc-2d062f306b4d)
 
 ### Autocomplete Example
 ![backportedcompletions_box](https://github.com/user-attachments/assets/39851c61-8c7a-43e8-a675-d6272513cb7d)
